@@ -1,0 +1,24 @@
+{% extends "layout.html" %}
+{% block main %}
+    <h3>Hi, {{ name }}</h3>
+    <h3>The Stocks Deployed:</h3>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Stock</th>
+                <th>Strategy</th>
+                <th>P&L</th>
+                <th>Stop</th>
+            </tr>
+        </thead>
+        {% for item in list %}
+            <tr>
+                <td>{{ item.stock }}</td>
+                <td>{{ item.strategy }}</td>
+                <td>{{ item.pl }}</td>
+                <td>{{ item.stop }}</td>
+            </tr>
+        {% endfor %}
+    </table>
+{% endblock %}
+{% block script %}{% endblock %}

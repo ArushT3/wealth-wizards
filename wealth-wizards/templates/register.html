@@ -1,0 +1,19 @@
+{% extends "layout.html" %}
+
+{% block main %}
+    <img style="padding: 30px;" src="../static/icon.jpeg" alt="Wealth Wizards Logo" width="250" height="250">
+    <h3 style="padding: 30px;">Register</h3>
+    <form action="/register" method="post" id="register_form">
+        <div class="mb-3">
+            <input autocomplete="off" autofocus class="form-control mx-auto w-auto" id="username" name="username" placeholder="Username" type="text">
+        </div>
+        <div class="mb-3">
+            <input class="form-control mx-auto w-auto" id="password" name="password" placeholder="Password" type="password">
+        </div>
+        <div class="mb-3">
+            <input class="form-control mx-auto w-auto" id="confirmation" name="confirmation" placeholder="Confirmation" type="password">
+        </div>
+        <button class="btn btn-primary" type=submit id="submit">Register</button>
+    </form>
+{% endblock %}
+{% block script %}{% endblock %}
