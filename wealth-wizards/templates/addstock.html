@@ -1,0 +1,19 @@
+{% extends "layout.html" %}
+
+{% block main %}
+    <img style="padding: 30px;" src="/static/log.png" alt="Wealth Wizards Logo" width="400" height="400">
+    <form action="/addstock" method="post">
+        <div class="mb-3">
+            <input autocomplete="off" autofocus class="form-control mx-auto w-auto" id="stock" name="stock" placeholder="Stock" type="text">
+        </div>
+        <div class="mb-3">
+            <select class="form-select form-control mx-auto w-auto" name="type">
+                <option  disabled selected>Type</option>
+                {% for option in options %}
+                    <option value="{{ option }}"> {{ option }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button class="btn btn-primary" type="submit">Add Stock</button>
+    </form>
+{% endblock %}

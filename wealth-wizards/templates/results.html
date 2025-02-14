@@ -1,0 +1,18 @@
+{% extends "layout.html" %}
+
+{% block main %}
+<div class="container mt-5">
+    <h2>Backtest Results</h2>
+
+    <!-- Display the message -->
+    {% if message %}
+    <p class="lead">{{ message }}</p>
+    {% endif %}
+
+    <!-- Display the backtest results image -->
+    {% if backtest_p %}
+    <h4 class="mt-4">Performance Chart</h4>
+    <img src="{{ url_for('static', filename=backtest_p) }}" class="img-fluid" alt="Backtest Results Chart">
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,24 @@
+{% extends "layout.html" %}
+
+{% block main %}
+    <img style="padding: 30px;" src="/static/log.png" alt="Wealth Wizards Logo" width="400" height="400">
+    <form action="/backtest" method="post">
+        <div class="mb-3">
+            <select class="form-select form-control mx-auto w-auto" name="stock">
+                <option  disabled selected>Stock</option>
+                {% for option in stocks %}
+                    <option value="{{ option }}"> {{ option }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-3">
+            <select class="form-select form-control mx-auto w-auto" name="type">
+                <option  disabled selected>Type</option>
+                {% for option in options %}
+                    <option value="{{ option }}"> {{ option }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button class="btn btn-primary" type="submit">Backtest</button>
+    </form>
+{% endblock %}
