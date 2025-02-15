@@ -5,33 +5,25 @@ import matplotlib.pyplot as plt
 with open("./ideal.txt", "w") as file:
     pass  # This will effectively empty the file
 
+print("Columns in DataFrame:", df.columns)
+
 # Mean reversion strategy
 def mrs_pnl(lookback, std_dev, df):
-    # Compute Bollinger Bands
-    df['moving_average'] = df.Close.rolling(lookback).mean()
-    df['moving_std_dev'] = df.Close.rolling(lookback).std()
-    df['upper_band'] = df.moving_average + std_dev * df.moving_std_dev
-    df['lower_band'] = df.moving_average - std_dev * df.moving_std_dev
+    df['moving_average'] = df['Close'].rolling(lookback).mean()
+    df['moving_std_dev'] = df['Close'].rolling(lookback).std()
+    df['upper_band'] = df['moving_average'] + std_dev * df['moving_std_dev']
+    df['lower_band'] = df['moving_average'] - std_dev * df['moving_std_dev']
 
-    # Check for long and short positions
-    df['long_entry'] = df.Close < df.lower_band
-    df['long_exit'] = df.Close >= df.moving_average
-    df['short_entry'] = df.Close > df.upper_band
-    df['short_exit'] = df.Close <= df.moving_average
-    df['positions_long'] = np.nan
-    df.loc[df.long_entry, 'positions_long'] = 1
-    df.loc[df.long_exit, 'positions_long'] = 0
-    df['positions_short'] = np.nan
-    df.loc[df.short_entry, 'positions_short'] = -1
-    df.loc[df.short_exit, 'positions_short'] = 0
-    df = df.fillna(method='ffill')
-    df['positions'] = df.positions_long + df.positions_short
+    df['long_entry'] = df['Close'] < df['lower_band']
+    df['long_exit'] = df['Close'] >= df['moving_average']
+    df['short_entry'] = df['Close'] > df['upper_band']
+    df['short_exit'] = df['Close'] <= df['moving_average']
 
-    # Calculate the PnL
-    df['Close_difference'] = df.Close - df.Close.shift(1)
-    df['pnl'] = df.positions.shift(1) * df.Close_difference
-    df['cumpnl'] = df.pnl.cumsum()
-    return df.cumpnl.iloc[-1]
+    df['Close_difference'] = df['Close'] - df['Close'].shift(1)
+    df['pnl'] = df['positions'].shift(1) * df['Close_difference']
+    df['cumpnl'] = df['pnl'].cumsum()
+
+    return df['cumpnl'].iloc[-1]
 
 with open("./stocks.txt", "r") as file:
     # Loop through each line in the file

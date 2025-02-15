@@ -1,21 +1,81 @@
-
 from cs50 import SQL
 from flask import Flask, redirect, session
 from werkzeug.security import check_password_hash, generate_password_hash
 from flask_session import Session
 from helpers import apology
+import numpy as np
+import pandas as pd
+import os
+from backtest import run_backtest
 
-def load_time_series(file_path, column_name):
+#app = Flask(__name__)
+
+#os.makedirs("static", exist_ok=True)
+
+#@app.route("/backtest", methods=["GET", "POST"])
+#def backtest():
+#    if request.method == "POST":
+#        stock_symbol = request.form.get("stock")
+#        lookback = int(request.form.get("lookback", 20))  # Default to 20 days
+#        std_dev = float(request.form.get("std_dev", 2.0))  # Default to 2 standard deviations
+#
+#        if not stock_symbol:
+#            return render_template("apology.html", top=400, bottom="No stock selected")
+#
+##        image_path, error = run_backtest(stock_symbol, lookback, std_dev)
+#
+ #       if error:
+  ##
+    #    return render_template("results.html", backtest_p=image_path)
+#
+ #   return render_template("backtest.html")
+
+
+def load_time_series(file_path, column_name="Close"):
     try:
         data = pd.read_csv(file_path)
-        time_series = data[column_name].dropna()  # Ensure no NaN values
+
+        data.columns = [col[0] if isinstance(col, tuple) else col for col in data.columns]
+
+        # DEBUG: Print the actual column names
+        print(f"DEBUG: Columns in file {file_path}: {data.columns.tolist()}")
+
+        # Check if column_name exists directly
+        if column_name in data.columns:
+            print(f"DEBUG: Found '{column_name}' column directly!")
+            time_series = data[column_name]
+
+        else:
+            # If 'Close' isn't found, search for any column that contains 'Close'
+            close_col = next((col for col in data.columns if "Close" in col), None)
+
+            if not close_col:
+                print(f"ERROR: No 'Close' column found in {file_path}. Available columns: {data.columns.tolist()}")
+                return None
+
+            print(f"DEBUG: Found '{close_col}' instead of '{column_name}'")
+            time_series = data[close_col]
+
+        # Drop NaN values
+        time_series = time_series.dropna()
+
+        # Ensure data is numeric
+        time_series = pd.to_numeric(time_series, errors="coerce").dropna()
+
+        if time_series.empty:
+            print(f"ERROR: No valid numeric data found in '{column_name}'")
+            return None
+
+        print("DEBUG: Time series loaded successfully!")
         return time_series
+
     except FileNotFoundError:
-        print(f"Error: The file {file_path} was not found.")
+        print(f"ERROR: The file {file_path} was not found.")
         return None
-    except KeyError:
-        print(f"Error: The column {column_name} does not exist in the file.")
+    except Exception as e:
+        print(f"ERROR: Unexpected error loading time series - {e}")
         return None
+
 
 # Mean reversion strategy
 def mrs_pnl(lookback,std_dev,df):
@@ -175,14 +235,14 @@ def stocks():
     return render_template("stocks.html", options=[])
 
 
-# @app.route("/backtest", methods=["GET", "POST"])
-# def backtest():
-#     if request.method == "POST":
-#         stock = request.form.get("stock")
-#         print(stock)
-#         type = request.form.get("type")
-#         if not stock:
-#             return apology("Please enter Stock", "/backtest", "Go back to backtest")
+#@app.route("/backtest", methods=["GET", "POST"])
+#def backtest():
+#    if request.method == "POST":
+##        stock = request.form.get("stock")
+#        print(stock)
+#        type = request.form.get("type")
+#        if not stock:
+#            return apology("Please enter Stock", "/backtest", "Go back to backtest")
 #         if not type:
 #             return apology("Please enter Type", "/backtest", "Go back to backtest")
 #
@@ -318,6 +378,7 @@ from flask import request, render_template
 
 @app.route("/backtest", methods=["GET", "POST"])
 def backtest():
+
     if request.method == "POST":
         # Get user input
         stock = request.form.get("stock", "").strip()
@@ -325,29 +386,47 @@ def backtest():
 
         # Validate input
         if not stock:
+            print("DEBUG: Stock not entered!")
             return apology("Please enter Stock", "/backtest", "Go back to backtest")
         if not backtest_type:
+            print("DEBUG: Backtest type not entered!")
             return apology("Please enter Type", "/backtest", "Go back to backtest")
+
+        print(f"DEBUG: Running backtest for {stock}")
 
         ticker = stock + ".NS"
         try:
             # Download data
+            print("DEBUG: Downloading data from yfinance...")
             data = yf.download(tickers=ticker, interval="1m", period="1d")
+
             if data.empty:
+                print("DEBUG: No data available for stock!")
                 return apology("No data available for the stock.", "/backtest", "Go back to backtest")
+
+            print("DEBUG: Data downloaded successfully!")
+            print(f"DEBUG: Data Columns -> {data.columns.tolist()}")
+            print(f"DEBUG: First few rows:\n{data.head()}")
 
             # Process data
             data = data.iloc[3:].reset_index(drop=True)
             output_file_path = os.path.join("temp", f"{stock}.csv")
             data.to_csv(output_file_path, index=False)
 
+            print("DEBUG: CSV saved!")
+
             # Load time series
             file_path = os.path.join("temp", f"{stock}.csv")
             column_name = "Close"
+
+            print("DEBUG: Loading time series data...")
             time_series = load_time_series(file_path, column_name)
 
             if time_series is None or time_series.empty:
+                print("DEBUG: Time series is empty!")
                 return apology("Error: Time series data not loaded.", "/backtest", "Go back to backtest")
+
+            print("DEBUG: Time series loaded successfully!")
 
             time_series = time_series.to_frame().reset_index(drop=True)
 
@@ -355,15 +434,22 @@ def backtest():
             if len(time_series) > 3:
                 time_series = time_series.iloc[3:].reset_index(drop=True)
             else:
+                print("DEBUG: Not enough data!")
                 return apology("Not enough data to process.", "/backtest", "Go back to backtest")
 
             # Perform ADF test
+            print("DEBUG: Running stationarity test (ADF)...")
             adf_result = adfuller(time_series["Close"])
             p_value = adf_result[1]
-            print(p_value)
+
+            print(f"DEBUG: ADF Test P-value: {p_value}")
+
             if p_value > 0.05:
+                print("DEBUG: Time series is not stationary!")
                 return apology("Time series is not stationary. Backtest cannot proceed.", "/backtest",
                                "Go back to backtest")
+
+            print("DEBUG: Time series is stationary! Running backtest...")
 
             # Hyperparameters
             lookback = [10, 20, 30]
@@ -371,6 +457,8 @@ def backtest():
 
             # Load and clean CSV data
             df = pd.read_csv(file_path, index_col=0, header=0)
+            df.columns = [col[0] if isinstance(col, tuple) else col for col in df.columns]
+
             df = df.iloc[1:].reset_index(drop=True)
             df["index"] = df.index.astype(int)
             df.set_index("index", inplace=True)
@@ -381,11 +469,13 @@ def backtest():
             train_set = df.iloc[:train_length].copy()
 
             if train_set.empty:
+                print("DEBUG: Training set is empty!")
                 return apology("Training set is empty after preprocessing!", "/backtest", "Go back to backtest")
+
+            print("DEBUG: Training set created! Running optimization...")
 
             # Optimization loop
             matrix = np.zeros((len(lookback), len(std_dev)))
-            print("Hit 7")
             for i, lb in enumerate(lookback):
                 for j, sd in enumerate(std_dev):
                     matrix[i, j] = mrs_pnl_pre(lb, sd, train_set) * 100
@@ -395,10 +485,30 @@ def backtest():
             opt_lookback = lookback[opt_idx[0]]
             opt_std_dev = std_dev[opt_idx[1]]
 
-            # Apply best parameters to backtest
-            df = pd.read_csv(file_path)
-            df.rename(columns={"Close": "prices"}, inplace=True)
+            print(f"DEBUG: Optimal parameters found -> Lookback: {opt_lookback}, Std Dev: {opt_std_dev}")
 
+            # Apply best parameters to backtest
+
+            df = pd.read_csv(file_path)
+
+            # Ensure column names are stripped of spaces
+            df.columns = [col.strip() for col in df.columns]
+
+            # Find the correct 'Close' column dynamically
+            close_col = next((col for col in df.columns if "Close" in col), None)
+
+            if not close_col:
+                print("ERROR: No 'Close' column found in", file_path)
+                return apology("Error: 'Close' column missing.", "/backtest", "Go back to backtest")
+
+            # Rename the column for consistency
+            df.rename(columns={close_col: "prices"}, inplace=True)
+
+            print("DEBUG: Using column:", close_col)
+            print("DEBUG: First few rows after renaming:\n", df.head())
+
+
+            print("DEBUG: Running backtest with optimal parameters...")
             result = mrs_pnl_pre(lookback=opt_lookback, std_dev=opt_std_dev, df=df)
 
             # Plot and save result
@@ -406,10 +516,12 @@ def backtest():
             result.cumpnl.plot()
             plt.savefig("static/plot.png", format="png", dpi=300, bbox_inches="tight")
 
+            print("DEBUG: Backtest complete! Returning results.")
             return render_template("results.html", message=f"Backtest Results for {stock}",
                                    backtest_p="static/plot.png")
 
         except Exception as e:
+            print(f"DEBUG: Exception occurred -> {e}")
             return apology(f"An error occurred: {str(e)}", "/backtest", "Go back to backtest")
 
     else:
